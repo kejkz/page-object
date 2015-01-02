@@ -59,6 +59,17 @@ module PageObject
         attribute 'class'
       end
 
+      #
+      # specify plural form of element
+      #
+      def self.plural_form
+        "#{self.to_s.split('::')[-1].
+            gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').
+            gsub(/([a-z\d])([A-Z])/,'\1_\2').
+            tr("-", "_").
+            downcase}s"
+      end
+
       # @private
       def self.watir_identifier_for identifier
         if should_build_watir_xpath(identifier)
@@ -107,7 +118,7 @@ module PageObject
       protected
 
       def self.should_build_watir_xpath identifier
-        ['table', 'span', 'div', 'td', 'li', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'label', 'area', 'canvas', 'audio', 'video'].include? identifier[:tag_name] and identifier[:name]
+        ['table', 'span', 'div', 'td', 'li', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'label', 'area', 'canvas', 'audio', 'video', 'b'].include? identifier[:tag_name] and identifier[:name]
       end
 
       def self.build_xpath_for identifier
@@ -122,14 +133,14 @@ module PageObject
           end
           xpath = ".//button"
           xpath << "[#{attribute_expression(btn_ident)}]" unless btn_ident.empty?
-          xpath << "[#{idx+1}]" if idx
+          xpath = "(#{xpath})[#{idx+1}]" if idx
           identifier[:type] = %w[button reset submit image]
           xpath << " | .//input"
         else
           xpath = ".//#{tag_locator}"
         end
         xpath << "[#{attribute_expression(identifier)}]" unless identifier.empty?
-        xpath << "[#{idx+1}]" if idx
+        xpath = "(#{xpath})[#{idx+1}]" if idx
         xpath
       end
 

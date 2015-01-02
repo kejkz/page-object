@@ -389,14 +389,6 @@ module PageObject
         end
 
         #
-        # platform method to clear a radio button
-        # See PageObject::Accessors#radio_button
-        #
-        def clear_radio(identifier)
-          process_watir_call("radio(identifier).clear", Elements::RadioButton, identifier)
-        end
-
-        #
         # platform method to determine if a radio button is selected
         # See PageObject::Accessors#radio_button
         #
@@ -938,35 +930,34 @@ module PageObject
         def svgs_for(identifier)
           find_watir_elements("element(identifier)", Elements::Element, identifier)
         end
+
+        #
+        # platform method to retrieve the text for a b
+        # See PageObject::Accessors#b
+        #
+        def b_text_for(identifier)
+          process_watir_call("b(identifier).text", Elements::Bold, identifier, nil, 'b')
+        end
+
+        #
+        # platform method to retrieve the b element
+        # See PageObject::Accessors#h1
+        #
+        def b_for(identifier)
+          find_watir_element("b(identifier)", Elements::Bold, identifier, 'b')
+        end
+
+        #
+        # platform method to retrieve an array of bs
+        #
+        def bs_for(identifier)
+          find_watir_elements("bs(identifier)", Elements::Bold, identifier, 'b')
+        end
  
         private
 
-        def move_element_to_css_selector(the_call, identifier)
-          valid_elements = %w(
-            area audio canvas div
-            h1 h2 h3 h4 h5 h6
-            label li p span td video
-          )
-          element = the_call.split('(').first
-          if identifier.keys.include?(:css) and valid_elements.include? element
-            the_call[element] = 'element'
-            selectors = identifier[:css].split(/,\s*/).map { |selector|
-              modified_selector = selector.split /\s+/
-              last = modified_selector.pop
-              if last.index(element) == 0
-                selector
-              else
-                modified_selector.push(element + last)
-              end
-            }
-            identifier[:css] = selectors.join(', ')
-          end
-          [the_call, identifier]
-        end
-    
         def find_watir_elements(the_call, type, identifier, tag_name=nil)
           identifier, frame_identifiers = parse_identifiers(identifier, type, tag_name)
-          the_call, identifier = move_element_to_css_selector(the_call, identifier)
           elements = @browser.instance_eval "#{nested_frames(frame_identifiers)}#{the_call}"
           switch_to_default_content(frame_identifiers)
           elements.map { |element| type.new(element, :platform => :watir_webdriver) }
@@ -974,7 +965,6 @@ module PageObject
 
         def find_watir_element(the_call, type, identifier, tag_name=nil)
           identifier, frame_identifiers = parse_identifiers(identifier, type, tag_name)
-          the_call, identifier = move_element_to_css_selector(the_call, identifier)
           element = @browser.instance_eval "#{nested_frames(frame_identifiers)}#{the_call}"
           switch_to_default_content(frame_identifiers)
           type.new(element, :platform => :watir_webdriver)
@@ -982,7 +972,6 @@ module PageObject
 
         def process_watir_call(the_call, type, identifier, value=nil, tag_name=nil)
           identifier, frame_identifiers = parse_identifiers(identifier, type, tag_name)
-          the_call, identifier = move_element_to_css_selector(the_call, identifier)
           value = @browser.instance_eval "#{nested_frames(frame_identifiers)}#{the_call}"
           switch_to_default_content(frame_identifiers)
           value
@@ -1000,24 +989,26 @@ module PageObject
           identifier[:tag_name] = tag if identifier[:name]
           identifier
         end
-    
+
         def nested_frames(frame_identifiers)
           return if frame_identifiers.nil?
           frame_str = ''
           frame_identifiers.each do |frame|
-            id = frame.values.first
             type = frame.keys.first
-            value = id.values.first
-            if value.is_a?(Regexp)
-              frame_str += "#{type.to_s}(:#{id.keys.first} => #{value.inspect})."
-            else
-              frame_str += "#{type.to_s}(:#{id.keys.first} => #{value})." if value.to_s.is_integer
-              frame_str += "#{type.to_s}(:#{id.keys.first} => '#{value}')." unless value.to_s.is_integer
-            end
+            identifier = frame.values.first.map do |key, value|
+              if value.is_a?(Regexp)
+                ":#{key} => #{value.inspect}"
+              elsif value.to_s.is_integer
+                ":#{key} => #{value}"
+              else
+                ":#{key} => '#{value}'"
+              end
+            end.join(', ')
+            frame_str += "#{type.to_s}(#{identifier})."
           end
           frame_str
         end
-        
+
         def switch_to_default_content(frame_identifiers)
           @browser.wd.switch_to.default_content unless frame_identifiers.nil?          
         end

@@ -13,7 +13,7 @@ module PageObject
   module Accessors
 
     #
-    # Set some values that can be used withing the class.  This is
+    # Set some values that can be used within the class.  This is
     # typically used to provide values that help build dynamic urls in
     # the page_url method
     #
@@ -39,11 +39,15 @@ module PageObject
     #
     def page_url(url)
       define_method("goto") do
+        platform.navigate_to self.page_url_value
+      end
+
+      define_method('page_url_value') do
         lookup = url.kind_of?(Symbol) ? self.send(url) : url
         erb = ERB.new(%Q{#{lookup}})
         merged_params = self.class.instance_variable_get("@merged_params")
         params = merged_params ? merged_params : self.class.params
-        platform.navigate_to erb.result(binding)
+        erb.result(binding)
       end
     end
     alias_method :direct_url, :page_url
@@ -62,19 +66,17 @@ module PageObject
     #
     def wait_for_expected_title(expected_title, timeout=::PageObject.default_element_wait)
       define_method("wait_for_expected_title?") do
-        page_title = title
-        has_expected_title = (expected_title === page_title)
-        if not has_expected_title and not timeout.nil?
-          wait_until(timeout, "Expected title '#{expected_title}' instead of '#{page_title}'") do 
-            has_expected_title = (expected_title === page_title)
-            has_expected_title
-          end
-        end
-        raise "Expected title '#{expected_title}' instead of '#{page_title}'" unless has_expected_title
+        error_message = lambda { "Expected title '#{expected_title}' instead of '#{title}'" }
+
+        has_expected_title = (expected_title === title)
+        wait_until(timeout, error_message.call) do
+          has_expected_title = (expected_title === title)
+        end unless has_expected_title
+
+        raise error_message.call unless has_expected_title
         has_expected_title
       end
     end
-
 
     #
     # Creates a method that compares the expected_title of a page against the actual.
@@ -191,7 +193,7 @@ module PageObject
     #   # 'first_name?' methods
     #
     # @param  [String] the name used for the generated methods
-    # @param [Hash] identifier how we find a text field.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a text field.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -205,7 +207,8 @@ module PageObject
     #   * :xpath => Watir and Selenium
     # @param optional block to be invoked when element method is called
     #
-    def text_field(name, identifier={:index => 0}, &block)
+    def text_field(name, identifier={:index => 0}, &block) 
+      standard_methods(name, identifier, 'text_field_for', &block)
       define_method(name) do
         return platform.text_field_value_for identifier.clone unless block_given?
         self.send("#{name}_element").value
@@ -214,7 +217,6 @@ module PageObject
         return platform.text_field_value_set(identifier.clone, value) unless block_given?
         self.send("#{name}_element").value = value
       end
-      standard_methods(name, identifier, 'text_field_for', &block)
     end
 
     #
@@ -227,7 +229,7 @@ module PageObject
     #   # will generate 'user_id', 'user_id_element' and 'user_id?' methods
     #
     # @param [String] the name used for the generated methods
-    # @param [Hash] identifier how we find a hidden field.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a hidden field.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -240,11 +242,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def hidden_field(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'hidden_field_for', &block)
       define_method(name) do
         return platform.hidden_field_value_for identifier.clone unless block_given?
         self.send("#{name}_element").value
       end
-      standard_methods(name, identifier, 'hidden_field_for', &block)
     end
     alias_method :hidden, :hidden_field
 
@@ -259,7 +261,7 @@ module PageObject
     #   # 'address?' methods
     #
     # @param  [String] the name used for the generated methods
-    # @param [Hash] identifier how we find a text area.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a text area.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -271,6 +273,7 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def text_area(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'text_area_for', &block)
       define_method(name) do
         return platform.text_area_value_for identifier.clone unless block_given?
         self.send("#{name}_element").value
@@ -279,7 +282,6 @@ module PageObject
         return platform.text_area_value_set(identifier.clone, value) unless block_given?
         self.send("#{name}_element").value = value
       end
-      standard_methods(name, identifier, 'text_area_for', &block)
     end
     alias_method :textarea, :text_area
 
@@ -295,7 +297,7 @@ module PageObject
     #   # will generate 'state', 'state=', 'state_element', 'state?', "state_options" methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a select list.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a select list.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -309,6 +311,7 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def select_list(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'select_list_for', &block)
       define_method(name) do
         return platform.select_list_value_for identifier.clone unless block_given?
         self.send("#{name}_element").value
@@ -317,13 +320,10 @@ module PageObject
         return platform.select_list_value_set(identifier.clone, value) unless block_given?
         self.send("#{name}_element").select(value)
       end
-
       define_method("#{name}_options") do
         element = self.send("#{name}_element")
         (element && element.options) ? element.options.collect(&:text) : []
       end
-
-      standard_methods(name, identifier, 'select_list_for', &block)
     end
     alias_method :select, :select_list
 
@@ -337,7 +337,7 @@ module PageObject
     #   # will generate 'add_to_cart', 'add_to_cart_element', and 'add_to_cart?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a link.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a link.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -353,11 +353,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def link(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'link_for', &block)
       define_method(name) do
         return platform.click_link_for identifier.clone unless block_given?
         self.send("#{name}_element").click
       end
-      standard_methods(name, identifier, 'link_for', &block)
     end
     alias_method :a, :link
 
@@ -373,7 +373,7 @@ module PageObject
     #   # 'active_element', and 'active?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a checkbox.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a checkbox.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -386,6 +386,7 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def checkbox(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'checkbox_for', &block)
       define_method("check_#{name}") do
         return platform.check_checkbox(identifier.clone) unless block_given?
         self.send("#{name}_element").check
@@ -398,23 +399,21 @@ module PageObject
         return platform.checkbox_checked?(identifier.clone) unless block_given?
         self.send("#{name}_element").checked?
       end
-      standard_methods(name, identifier, 'checkbox_for', &block)
     end
 
     #
-    # adds five methods - one to select, another to clear,
-    # another to return if a radio button is selected,
-    # another method to return a PageObject::Elements::RadioButton
+    # adds four methods - one to select, another to return if a radio button 
+    # is selected, another method to return a PageObject::Elements::RadioButton
     # object representing the radio button element, and another to check
     # the radio button's existence.
     #
     # @example
     #   radio_button(:north, :id => "north")
-    #   # will generate 'select_north', 'clear_north', 'north_selected?',
+    #   # will generate 'select_north', 'north_selected?',
     #   # 'north_element', and 'north?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a radio button.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a radio button.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -427,26 +426,22 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def radio_button(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'radio_button_for', &block)
       define_method("select_#{name}") do
         return platform.select_radio(identifier.clone) unless block_given?
         self.send("#{name}_element").select
-      end
-      define_method("clear_#{name}") do
-        return platform.clear_radio(identifier.clone) unless block_given?
-        self.send("#{name}_element").clear
       end
       define_method("#{name}_selected?") do
         return platform.radio_selected?(identifier.clone) unless block_given?
         self.send("#{name}_element").selected?
       end
-      standard_methods(name, identifier, 'radio_button_for', &block)
     end
     alias_method :radio, :radio_button
 
     #
     # adds five methods to help interact with a radio button group -
     # a method to select a radio button in the group by given value/text,
-    # a method to return the values of all radio buttins in the group, a method
+    # a method to return the values of all radio buttons in the group, a method
     # to return if a radio button in the group is selected (will return
     # the text of the selected radio button, if true), a method to return
     # an array of PageObject::Elements::RadioButton objects representing
@@ -502,7 +497,7 @@ module PageObject
     #   # will generate 'purchase', 'purchase_element', and 'purchase?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a button.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a button.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -517,11 +512,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def button(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'button_for', &block)
       define_method(name) do
         return platform.click_button_for identifier.clone unless block_given?
         self.send("#{name}_element").click
       end
-      standard_methods(name, identifier, 'button_for', &block)
     end
 
     #
@@ -533,7 +528,7 @@ module PageObject
     #   # will generate 'message', 'message_element', and 'message?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a div.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a div.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -546,11 +541,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def div(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'div_for', &block)
       define_method(name) do
         return platform.div_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'div_for', &block)
     end
 
     #
@@ -562,7 +557,7 @@ module PageObject
     #   # will generate 'alert', 'alert_element', and 'alert?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a span.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a span.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -575,11 +570,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def span(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'span_for', &block)
       define_method(name) do
         return platform.span_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'span_for', &block)
     end
 
     #
@@ -593,7 +588,7 @@ module PageObject
     #   # will generate a 'cart', 'cart_element' and 'cart?' method
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a table.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a table.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -604,11 +599,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def table(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'table_for', &block)
       define_method(name) do
         return platform.table_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'table_for', &block)
     end
 
     #
@@ -621,7 +616,7 @@ module PageObject
     #   # will generate 'total', 'total_element', and 'total?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a cell.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a cell.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -634,11 +629,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def cell(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'cell_for', &block)
       define_method("#{name}") do
         return platform.cell_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'cell_for', &block)
     end
     alias_method :td, :cell
 
@@ -651,7 +646,7 @@ module PageObject
     #   # will generate 'logo_element' and 'logo?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find an image.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find an image.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :alt => Watir and Selenium
     #   * :class => Watir and Selenium
@@ -677,7 +672,7 @@ module PageObject
     #   # will generate 'login_element' and 'login?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a form.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a form.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :action => Watir and Selenium
     #   * :class => Watir and Selenium
@@ -701,7 +696,7 @@ module PageObject
     #   # will generate 'item_one', 'item_one_element', and 'item_one?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a list item.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a list item.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -713,16 +708,16 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def list_item(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'list_item_for', &block)
       define_method(name) do
         return platform.list_item_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'list_item_for', &block)
     end
     alias_method :li, :list_item
 
     #
-    # adds three methods - one to return the text within the unorderd
+    # adds three methods - one to return the text within the unordered
     # list, one to retrieve the unordered list element, and another to
     # check it's existence.
     #
@@ -731,7 +726,7 @@ module PageObject
     #   # will generate 'menu', 'menu_element' and 'menu?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find an unordered list.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find an unordered list.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -742,16 +737,16 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def unordered_list(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'unordered_list_for', &block)
       define_method(name) do
         return platform.unordered_list_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'unordered_list_for', &block)
     end
     alias_method :ul, :unordered_list
 
     #
-    # adds three methods - one to return the text withing the ordered
+    # adds three methods - one to return the text within the ordered
     # list, one to retrieve the ordered list element, and another to
     # test it's existence.
     #
@@ -760,7 +755,7 @@ module PageObject
     #   # will generate 'top_five', 'top_five_element' and 'top_five?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find an ordered list.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find an ordered list.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -771,11 +766,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def ordered_list(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'ordered_list_for', &block)
       define_method(name) do
         return platform.ordered_list_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'ordered_list_for', &block)
     end
     alias_method :ol, :ordered_list
 
@@ -788,7 +783,7 @@ module PageObject
     #   # will generate 'title', 'title_element', and 'title?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a H1.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a H1.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -799,11 +794,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def h1(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier,'h1_for', &block)
       define_method(name) do
         return platform.h1_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier,'h1_for', &block)
     end
 
     #
@@ -815,7 +810,7 @@ module PageObject
     #   # will generate 'title', 'title_element', and 'title?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a H2.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a H2.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -826,11 +821,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def h2(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'h2_for', &block)
       define_method(name) do
         return platform.h2_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'h2_for', &block)
     end
 
     #
@@ -842,7 +837,7 @@ module PageObject
     #   # will generate 'title', 'title_element', and 'title?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a H3.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a H3.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -853,11 +848,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def h3(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'h3_for', &block)
       define_method(name) do
         return platform.h3_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'h3_for', &block)
     end
 
     #
@@ -869,7 +864,7 @@ module PageObject
     #   # will generate 'title', 'title_element', and 'title?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a H4.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a H4.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -880,11 +875,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def h4(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'h4_for', &block)
       define_method(name) do
         return platform.h4_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'h4_for', &block)
     end
 
     #
@@ -896,7 +891,7 @@ module PageObject
     #   # will generate 'title', 'title_element', and 'title?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a H5.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a H5.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -907,11 +902,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def h5(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'h5_for', &block)
       define_method(name) do
         return platform.h5_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'h5_for', &block)
     end
 
     #
@@ -923,7 +918,7 @@ module PageObject
     #   # will generate 'title', 'title_element', and 'title?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a H6.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a H6.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -934,11 +929,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def h6(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'h6_for', &block)
       define_method(name) do
         return platform.h6_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'h6_for', &block)
     end
 
     #
@@ -950,7 +945,7 @@ module PageObject
     #   # will generate 'title', 'title_element', and 'title?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a paragraph.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a paragraph.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -961,11 +956,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def paragraph(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'paragraph_for', &block)
       define_method(name) do
         return platform.paragraph_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'paragraph_for', &block)
     end
     alias_method :p, :paragraph
 
@@ -978,7 +973,7 @@ module PageObject
     #   # will generate 'the_file=', 'the_file_element', and 'the_file?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a file_field.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a file_field.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -991,11 +986,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def file_field(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'file_field_for', &block)
       define_method("#{name}=") do |value|
         return platform.file_field_value_set(identifier.clone, value) unless block_given?
         self.send("#{name}_element").value = value
       end
-      standard_methods(name, identifier, 'file_field_for', &block)
     end
 
     #
@@ -1007,7 +1002,7 @@ module PageObject
     #   # will generate 'message', 'message_element', and 'message?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a label.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a label.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -1019,11 +1014,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def label(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'label_for', &block)
       define_method(name) do
         return platform.label_text_for identifier.clone unless block_given?
         self.send("#{name}_element").text
       end
-      standard_methods(name, identifier, 'label_for', &block)
     end
 
     #
@@ -1035,7 +1030,7 @@ module PageObject
     #   # will generate 'message', 'message_element', and 'message?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find an area.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find an area.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -1047,11 +1042,11 @@ module PageObject
     # @param optional block to be invoked when element method is called
     #
     def area(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier, 'area_for', &block)
       define_method(name) do
         return platform.click_area_for identifier.clone unless block_given?
         self.send("#{name}_element").click
       end
-      standard_methods(name, identifier, 'area_for', &block)
     end
 
     #
@@ -1063,7 +1058,7 @@ module PageObject
     #   # will generate 'my_canvas_element' and 'my_canvas?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a canvas.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a canvas.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -1086,7 +1081,7 @@ module PageObject
     #   # will generate 'acdc_element' and 'acdc?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find an audio element.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find an audio element.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -1109,7 +1104,7 @@ module PageObject
     #   # will generate 'movie_element' and 'movie?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a video element.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a video element.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Watir and Selenium
@@ -1124,6 +1119,33 @@ module PageObject
     end
 
     #
+    # adds three methods - one to retrieve the text of a b element, another to
+    # retrieve a b element, and another to check for it's existence.
+    #
+    # @example
+    #   b(:bold, :id => 'title')
+    #   # will generate 'bold', 'bold_element', and 'bold?' methods
+    #
+    # @param [Symbol] the name used for the generated methods
+    # @param [Hash] identifier how we find a b.  You can use a multiple parameters
+    #   by combining of any of the following except xpath.  The valid keys are:
+    #   * :class => Watir and Selenium
+    #   * :css => Watir and Selenium
+    #   * :id => Watir and Selenium
+    #   * :index => Watir and Selenium
+    #   * :name => Watir and Selenium
+    #   * :xpath => Watir and Selenium
+    # @param optional block to be invoked when element method is called
+    #
+    def b(name, identifier={:index => 0}, &block)
+      standard_methods(name, identifier,'b_for', &block)
+      define_method(name) do
+        return platform.b_text_for identifier.clone unless block_given?
+        self.send("#{name}_element").text
+      end
+    end
+
+    #
     # adds two methods - one to retrieve a svg, and another to check
     # the svg's existence.
     #
@@ -1132,7 +1154,7 @@ module PageObject
     #   # will generate 'circle_element', and 'circle?' methods
     #
     # @param [Symbol] the name used for the generated methods
-    # @param [Hash] identifier how we find a svg.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a svg.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -1157,7 +1179,7 @@ module PageObject
     #
     # @param [Symbol] the name used for the generated methods
     # @param [Symbol] the name of the tag for the element
-    # @param [Hash] identifier how we find an element.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find an element.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -1190,7 +1212,7 @@ module PageObject
     #
     # @param [Symbol] the name used for the generated methods
     # @param [Symbol] the name of the tag for the element
-    # @param [Hash] identifier how we find an element.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find an element.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -1219,7 +1241,7 @@ module PageObject
     #
     # @param [Symbol] the name used for the generated methods
     # @param [Symbol] the name of the tag for the element
-    # @param [Hash] identifier how we find an element.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find an element.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid keys are:
     #   * :class => Watir and Selenium
     #   * :css => Selenium only
@@ -1284,14 +1306,14 @@ module PageObject
     #
     # methods to fetch multiple elements of the same type
     #
-    # adds a method to the page object to retrun all of the matching elements
+    # adds a method to the page object to return all of the matching elements
     #
     # @example
     #   text_fields(:first_name, :id => "first_name")
     #   # will generate 'first_name_elements'
     #
     # @param  [String] the name used for the generated methods
-    # @param [Hash] identifier how we find a text field.  You can use a multiple paramaters
+    # @param [Hash] identifier how we find a text field.  You can use a multiple parameters
     #   by combining of any of the following except xpath.  The valid
     #   keys are the same ones supported by the standard methods.
     # @param optional block to be invoked when element method is called
@@ -1308,6 +1330,5 @@ module PageObject
         end
       end
     end
-
   end
 end

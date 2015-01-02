@@ -1,3 +1,36 @@
+=== Version 1.0.3 / 2014-12-9
+* Enhancements
+  * Added support for the bold tag (Thanks sedx)
+  * Added support for angularjs in wait_for_ajax (Thanks Owen Housden)
+  * Added hashes method to Table to return table contents as a Hash (Thanks Tobi)
+  * Fixed wait_for_expected_title so it detects if the title changes (Thanks Levi Wilson)
+* Fixes
+  * Fixed issue that allows access to elements on other indexed properties (Thanks Dane Andersen)
+  * Removed the method to clear radio buttons.  It didn't work on selenium and threw an exception on watir. (Thanks Justin Ko)
+
+=== Version 1.0.2 / 2014-7-21
+* Enhancements
+  * Added support to use multiple identifiers when locating nested frames / iframes (Thanks Justin Ko)
+* Fixes
+  * Reverted the method name check due to unintended consequences
+
+=== Version 1.0.1 / 2014-7-19
+* Enhancements
+  * Checks the name of generated methods to ensure they do not colide with existing page-object methods
+  * Removed old legacy css code and now delegate everything to Watir
+* Fixes
+  * Added support for dynamically finding elements inside iframes (Thanks Justin Ko)
+
+=== Version 1.0 / 2014-6-1
+* Enhancements
+  * Better support for using Regexp
+  * Added new page_url_value method that is created when you define page_url to return the value
+  * Added better error message when nil is passed to the constructor of a PageObject
+  * Updated to use the latest watir-webdriver 0.6.9
+  * Updated to use the latest selenium-webdriver 2.42.0
+* Fixes
+  * Improved handling of index locator
+
 === Version 0.9.8 / 2014-3-16
 * Enhancements
   * populate_page_with not supports radio groups

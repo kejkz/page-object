@@ -103,7 +103,8 @@ module PageObject
 
   #
   # Set the javascript framework to use when determining number of
-  # ajax requests.  Valid frameworks are :jquery and :prototype
+  # ajax requests.  Valid frameworks are :jquery, :prototype, :yui,
+  # and :angularjs
   #
   def self.javascript_framework=(framework)
     PageObject::JavascriptFrameworkFacade.framework = framework
@@ -196,7 +197,7 @@ module PageObject
   end
 
   #
-  # Override the normal alert popup so it does not occurr.
+  # Override the normal alert popup so it does not occur.
   #
   # @example
   #   message = @page.alert do
@@ -212,7 +213,7 @@ module PageObject
   end
 
   #
-  # Override the normal confirm popup so it does not occurr.
+  # Override the normal confirm popup so it does not occur.
   #
   # @example
   #   message = @popup.confirm(true) do
@@ -229,7 +230,7 @@ module PageObject
   end
 
   #
-  # Override the normal promp popup so it does not occurr.
+  # Override the normal prompt popup so it does not occur.
   #
   # @example
   #   message = @popup.prompt("Some Value") do
@@ -260,7 +261,7 @@ module PageObject
   end
 
   #
-  # Identify an element as existing within a frame or iframe.  A frame parameter
+  # Identify an element as existing within a frame.  A frame parameter
   # is passed to the block and must be passed to the other calls to PageObject.
   # You can nest calls to in_frame by passing the frame to the next level.
   #
@@ -280,6 +281,27 @@ module PageObject
   def in_frame(identifier, frame=nil, &block)
     platform.in_frame(identifier, frame, &block)
   end
+
+  # Identify an element as existing within an iframe.  A frame parameter
+  # is passed to the block and must be passed to the other calls to PageObject.
+  # You can nest calls to in_iframe by passing the frame to the next level.
+  #
+  # @example
+  #   in_iframe(:id => 'iframe_id') do |iframe|
+  #     text_field_element(:id => 'ifname', :frame => iframe)
+  #   end
+  #
+  # @param [Hash] identifier how we find the iframe.  The valid keys are:
+  #   * :id => Watir and Selenium
+  #   * :index => Watir and Selenium
+  #   * :name => Watir and Selenium
+  #   * :class => Watir only
+  # @param frame passed from a previous call to in_iframe.  Used to nest calls
+  # @param block that contains the calls to elements that exist inside the iframe.
+  #
+  def in_iframe(identifier, frame=nil, &block)
+    platform.in_iframe(identifier, frame, &block)
+  end  
 
   #
   # Override the normal showModalDialog call is it opens a window instead
@@ -308,7 +330,7 @@ module PageObject
 
   #
   # Attach to a running window.  You can locate the window using either
-  # the window's title or url.  If it failes to connect to a window it will
+  # the window's title or url.  If it fails to connect to a window it will
   # pause for 1 second and try again.
   #
   # @example
